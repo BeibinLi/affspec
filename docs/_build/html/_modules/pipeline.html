@@ -1,0 +1,332 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>pipeline &#8212; Facial Affect Analysis System for Autism Spectrum Disorder 0.0 documentation</title>
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Facial Affect Analysis System for Autism Spectrum Disorder 0.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pipeline</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">copy</span><span class="o">,</span> <span class="nn">time</span><span class="o">,</span> <span class="nn">pdb</span><span class="o">,</span> <span class="nn">random</span><span class="o">,</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">glob</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">models</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="kn">import</span> <span class="nn">config</span>
+
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+<span class="c1">#matplotlib.use( &quot;Agg&quot; ) # plot in the backend without interaction</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">face_recognition</span> <span class="k">as</span> <span class="nn">fr</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+
+
+<span class="c1">#%%</span>
+<span class="n">img_size</span> <span class="o">=</span> <span class="p">[</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">3</span> <span class="p">]</span>
+<span class="n">OUT_DIR</span> <span class="o">=</span> <span class="s2">&quot;image/&quot;</span>
+
+<span class="c1">#%%</span>
+
+<div class="viewcode-block" id="detect_face"><a class="viewcode-back" href="../index.html#pipeline.detect_face">[docs]</a><span class="k">def</span> <span class="nf">detect_face</span><span class="p">(</span> <span class="n">img</span> <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    img is get from cv2.imread()</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        img (numpy.array): the input image</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        t, r, b, l (int): top, right, bottom, left</span>
+<span class="sd">        </span>
+<span class="sd">    &quot;&quot;&quot;</span>    
+    <span class="n">all_locations</span> <span class="o">=</span> <span class="n">fr</span><span class="o">.</span><span class="n">face_locations</span><span class="p">(</span> <span class="n">img</span> <span class="p">,</span> <span class="n">model</span> <span class="o">=</span> <span class="s1">&#39;hog&#39;</span> <span class="p">)</span> <span class="c1"># get locations of all faces</span>
+
+    <span class="n">max_area</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">face_location</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">all_locations</span><span class="p">:</span> <span class="c1"># x is the location for one face</span>
+        <span class="n">face_size</span> <span class="o">=</span> <span class="p">(</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="p">)</span> <span class="o">*</span> <span class="p">(</span> <span class="n">x</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span> <span class="n">face_size</span> <span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_area</span><span class="p">:</span>
+            <span class="n">face_location</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span> <span class="n">x</span> <span class="p">)</span>
+
+    <span class="c1"># pdb.set_trace()</span>
+    <span class="n">t</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">l</span> <span class="o">=</span> <span class="n">face_location</span>
+    
+
+    <span class="k">return</span> <span class="n">t</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">l</span></div>
+
+
+
+
+<span class="kn">from</span> <span class="nn">dataloader.custom_transforms</span> <span class="k">import</span> <span class="n">FaceCrop</span>
+<span class="kn">from</span> <span class="nn">torchvision</span> <span class="k">import</span> <span class="n">transforms</span>
+
+<span class="n">transformer</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span><span class="n">FaceCrop</span><span class="p">(),</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Resize</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">]),</span> <span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">()])</span>
+
+<div class="viewcode-block" id="img2torch"><a class="viewcode-back" href="../index.html#pipeline.img2torch">[docs]</a><span class="k">def</span> <span class="nf">img2torch</span><span class="p">(</span> <span class="n">img</span> <span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Detect and crop the face, and then convert the largest face to PyTorch tensor</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        img (numpy.array):  the input image as the numpy array with [h, w, 3] size.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        img (torch.Tensor): the input image as PyTorch object with [3, 224, 224] size.</span>
+<span class="sd">        </span>
+<span class="sd">    &quot;&quot;&quot;</span>    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">top</span><span class="p">,</span> <span class="n">right</span><span class="p">,</span> <span class="n">bottom</span><span class="p">,</span> <span class="n">left</span> <span class="o">=</span> <span class="n">detect_face</span><span class="p">(</span> <span class="n">img</span> <span class="p">)</span>
+        
+        <span class="n">img_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">img</span><span class="p">,</span> <span class="s2">&quot;top&quot;</span><span class="p">:</span><span class="n">top</span><span class="p">,</span> <span class="s2">&quot;bottom&quot;</span><span class="p">:</span><span class="n">bottom</span><span class="p">,</span> <span class="s2">&quot;left&quot;</span><span class="p">:</span><span class="n">left</span><span class="p">,</span> <span class="s2">&quot;right&quot;</span><span class="p">:</span><span class="n">right</span><span class="p">}</span>
+        <span class="c1"># pdb.set_trace()</span>
+        <span class="n">tensor</span> <span class="o">=</span> <span class="n">transformer</span><span class="p">(</span><span class="n">img_dict</span><span class="p">)</span>
+        <span class="n">tensor</span> <span class="o">=</span> <span class="n">tensor</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="c1"># make 3-dim to 4-dim</span>
+        <span class="k">return</span> <span class="n">tensor</span>
+        
+        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="p">[</span> <span class="n">top</span><span class="p">:</span><span class="n">bottom</span><span class="p">,</span> <span class="n">left</span><span class="p">:</span><span class="n">right</span><span class="p">,</span> <span class="p">:</span> <span class="p">]</span>
+        
+        
+        <span class="c1"># plt.imshow(img)</span>
+        
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span> <span class="s2">&quot;unable to get face&quot;</span> <span class="p">)</span>
+        
+    <span class="n">img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span> <span class="n">img</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2RGB</span><span class="p">)</span>
+ 
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span> <span class="n">img</span><span class="p">,</span> <span class="p">(</span><span class="n">img_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">img_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span> <span class="s2">&quot;Error resizing from&quot;</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">,</span> <span class="n">img_size</span> <span class="p">)</span>
+        <span class="k">raise</span><span class="p">(</span> <span class="n">e</span> <span class="p">)</span>
+
+    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="p">)</span> <span class="c1"># swap height axis and color_depth axis</span>
+    <span class="c1"># img = img.swapaxes( 1, 2 ) # swap height and width axis</span>
+    <span class="c1"># Now, the img has shape [3, 224, 224] i.e. [ channel, height, width ]</span>
+
+    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">float64</span> <span class="p">)</span>
+    
+    <span class="n">img</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span> <span class="n">img</span> <span class="p">)</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="c1"># add one more dimension before the data</span>
+
+    <span class="k">return</span> <span class="n">img</span></div>
+
+
+<span class="c1">#%%</span>
+<div class="viewcode-block" id="Process"><a class="viewcode-back" href="../index.html#pipeline.Process">[docs]</a><span class="k">class</span> <span class="nc">Process</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set up as session (aka process) to serve the CNN model.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        weight_loc (str):  the default location for the model weights</span>
+<span class="sd">        </span>
+<span class="sd">    &quot;&quot;&quot;</span>    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">weight_loc</span><span class="p">,</span> <span class="n">cuda_id</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cuda_id</span> <span class="o">=</span> <span class="n">cuda_id</span>
+        
+        <span class="k">if</span> <span class="n">cuda_id</span> <span class="o">==</span> <span class="s2">&quot;all&quot;</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">if</span> <span class="n">cuda_id</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">loc</span> <span class="o">=</span> <span class="s1">&#39;cuda:</span><span class="si">%d</span><span class="s1">&#39;</span><span class="o">%</span> <span class="n">cuda_id</span>
+            <span class="n">cuda_id</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">set_device</span><span class="p">(</span> <span class="n">cuda_id</span> <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">loc</span> <span class="o">=</span> <span class="s1">&#39;cpu&#39;</span> 
+            
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span> <span class="n">loc</span> <span class="o">=</span> <span class="s2">&quot;cpu&quot;</span>
+            
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span> <span class="n">weight_loc</span><span class="p">,</span> <span class="n">map_location</span><span class="o">=</span><span class="n">loc</span> <span class="p">)</span>    
+        <span class="c1"># if the saved model is a data parallel model, de-data parallel </span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;module&quot;</span> <span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">module</span> 
+
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        
+        <span class="c1"># For Action Units</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigmoid</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">()</span> 
+        
+        <span class="c1"># Cuda</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_cuda</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_cuda</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+        
+        <span class="c1"># Copy Paste from my Dataloader</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">AUs</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;2&quot;</span><span class="p">,</span> <span class="s2">&quot;4&quot;</span><span class="p">,</span> <span class="s2">&quot;5&quot;</span><span class="p">,</span> <span class="s2">&quot;6&quot;</span><span class="p">,</span> <span class="s2">&quot;9&quot;</span><span class="p">,</span> <span class="s2">&quot;12&quot;</span><span class="p">,</span> <span class="s2">&quot;17&quot;</span><span class="p">,</span> <span class="s2">&quot;20&quot;</span><span class="p">,</span> <span class="s2">&quot;25&quot;</span><span class="p">,</span> <span class="s2">&quot;26&quot;</span><span class="p">,</span> <span class="s2">&quot;43&quot;</span> <span class="p">]</span> <span class="c1"># the actual AUs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">AUs</span> <span class="o">=</span> <span class="p">[</span> <span class="nb">int</span><span class="p">(</span><span class="n">_</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUs</span> <span class="p">]</span> <span class="c1"># AU from string to index (0 indexing)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">AUs</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">AUs</span> <span class="p">)</span> <span class="c1"># sanity check</span>
+    
+    
+    <span class="k">def</span> <span class="nf">au_array_2_description</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">arr</span> <span class="p">):</span>
+        
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;AU1 Inner Brow Raiser&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU2 Outer Brow Raiser &quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU4 Brow Lowerer&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU5 Upper Lid Raiser&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;AU6 Cheek Raiser&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU9 Nose Wrinkler&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU12 Lip Corner Puller&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU17 Chin Raiser	&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU20 Lip stretcher&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU25 Lips Part&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU26 Jaw Drop&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;AU43 Eyes Closed&quot;</span> <span class="p">]</span> <span class="c1"># the actual AUs</span>
+
+        <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Inner Brow Raiser&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Outer Brow Raiser &quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Brow Lowerer&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Upper Lid Raiser&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;Cheek Raiser&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Nose Wrinkler&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Lip Corner Puller&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Chin Raiser&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Lip stretcher&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Lips Part&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Jaw Drop&quot;</span><span class="p">,</span> 
+                 <span class="s2">&quot;Eyes Closed&quot;</span> <span class="p">]</span> <span class="c1"># the actual AUs</span>
+
+        <span class="n">rst</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">action_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="n">arr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="k">continue</span> <span class="c1"># if the val is zero, skip</span>
+<span class="c1">#            rst += &quot;%s: %d &quot; % (names[i], arr[i])</span>
+            <span class="n">rst</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">, &quot;</span> <span class="o">%</span> <span class="n">names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">action_count</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1">#if action_count % 3 == 0 and action_count &lt; 8: rst += &quot;\n&quot;</span>
+            
+        <span class="k">return</span> <span class="n">rst</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+  
+    <span class="k">def</span> <span class="nf">run_one_img</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">imgname</span> <span class="o">=</span> <span class="kc">None</span> <span class="p">):</span>
+        <span class="n">tic</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">inputs</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_cuda</span><span class="p">:</span> <span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+        
+<span class="c1">#        pdb.set_trace()</span>
+        
+        <span class="c1"># Get the output</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span> <span class="n">inputs</span> <span class="p">)</span>
+        <span class="n">output_exp</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">8</span><span class="p">]</span>
+        <span class="n">output_val</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">8</span><span class="p">]</span> 
+        <span class="n">output_aro</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">9</span><span class="p">]</span> 
+        <span class="n">output_au</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">10</span><span class="p">:</span><span class="mi">22</span><span class="p">]</span> <span class="p">)</span>
+        
+        
+        <span class="c1"># AU: action units</span>
+        <span class="n">au_prediction</span> <span class="o">=</span> <span class="p">(</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span> <span class="n">output_au</span> <span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+        <span class="c1"># Exp: expression</span>
+        <span class="n">val</span><span class="p">,</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span> <span class="n">output_exp</span><span class="p">,</span> <span class="mi">1</span> <span class="p">)</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">expression</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">expressions</span><span class="p">[</span> <span class="n">idx</span> <span class="p">]</span>
+        
+        <span class="n">confidence</span> <span class="o">=</span> <span class="n">output_exp</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="n">idx</span><span class="p">]</span> <span class="o">/</span> <span class="n">output_exp</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># VA: valence and arousal</span>
+        <span class="n">valence</span> <span class="o">=</span> <span class="n">output_val</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="n">arousal</span> <span class="o">=</span> <span class="n">output_aro</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        
+        
+        <span class="n">au_description</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">au_array_2_description</span><span class="p">(</span> <span class="n">au_prediction</span> <span class="p">)</span>        
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> (</span><span class="si">%.2f</span><span class="s2">) </span><span class="si">%.2f</span><span class="s2"> </span><span class="si">%.2f</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">expression</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="n">confidence</span><span class="p">,</span> <span class="n">valence</span><span class="p">,</span> <span class="n">arousal</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">au_description</span><span class="p">)</span> <span class="p">)</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">cvtColor</span><span class="p">(</span> <span class="n">img</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">COLOR_BGR2RGB</span><span class="p">)</span>
+        
+        <span class="n">plt</span><span class="o">.</span><span class="n">cla</span><span class="p">();</span> <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span> <span class="n">img</span> <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span> <span class="n">msg</span> <span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span> <span class="s1">&#39;off&#39;</span> <span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">imgname</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">imgname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span> <span class="n">imgname</span> <span class="p">)</span>
+            <span class="n">outname</span> <span class="o">=</span> <span class="n">imgname</span><span class="p">[</span> <span class="p">:</span><span class="n">imgname</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span> <span class="s2">&quot;.&quot;</span> <span class="p">)</span> <span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;_rst.jpg&quot;</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span> <span class="n">outname</span> <span class="p">)</span>
+        
+        <span class="n">dur</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">tic</span>
+        <span class="nb">print</span><span class="p">(</span> <span class="s2">&quot;It takes </span><span class="si">%.3f</span><span class="s2"> seconds to process this image&quot;</span> <span class="o">%</span> <span class="n">dur</span> <span class="p">)</span>
+            
+        
+    <span class="k">def</span> <span class="nf">run_one_batch</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span> <span class="p">):</span>
+        <span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_cuda</span><span class="p">:</span> <span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+       
+        <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span> <span class="n">inputs</span><span class="o">.</span><span class="n">float</span><span class="p">()</span> <span class="p">)</span>
+        <span class="n">output_exp</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">0</span><span class="p">:</span><span class="mi">8</span><span class="p">]</span> 
+        <span class="n">output_val</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">8</span><span class="p">]</span> 
+        <span class="n">output_aro</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">9</span><span class="p">]</span> 
+        <span class="n">output_au</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span> <span class="n">outputs</span><span class="p">[:,</span><span class="mi">10</span><span class="p">:</span><span class="mi">22</span><span class="p">]</span> <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">output_exp</span><span class="p">,</span> <span class="n">output_au</span><span class="p">,</span> <span class="n">output_val</span><span class="p">,</span> <span class="n">output_aro</span>        </div>
+        
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">Facial Affect Analysis System for Autism Spectrum Disorder 0.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019, Beibin Li.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.0.1.
+    </div>
+  </body>
+</html>
