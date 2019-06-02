@@ -13,7 +13,6 @@ import pdb
 from torchvision import transforms
 
 from .custom_transforms import FaceCrop
-from .CombinedLoader import valid_transformer
 
 #%%
 
