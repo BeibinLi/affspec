@@ -67,9 +67,8 @@ class VideoDataset(torch.utils.data.Dataset):
             return imgpath, data
 
         except Exception as e:
-            print( e )
-#            pdb.set_trace()
-            print( t, r, b, l, imgpath ) 
+            print(e)
+            print(t, r, b, l, imgpath)
             return imgpath, torch.Tensor( np.zeros([3,224,224]) )
                     
 

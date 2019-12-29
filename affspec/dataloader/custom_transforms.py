@@ -7,11 +7,10 @@ import skimage
 #%%
 class FaceCrop(object):
     """
-    Crop randomly the image in a sample.
+    Crop the face region from an image
 
     Args:
         scale (float): The scale is numerical ratio for cropping the face.
-
             e.g.
             If it is greater than 1, then the cropped face will be bigger than the detected face (crop more in backgrounds)
             If it is smaller than 1, then the cropped face will be smaller than the detected face (hair, chin, etc are cropped away)
@@ -20,7 +19,7 @@ class FaceCrop(object):
         image (Image.array): the PIL image.        
     """
         
-    def __init__(self, scale = 1.3 ):
+    def __init__(self, scale = 1.3):
         self.scale = scale
         
     def __call__(self, sample):
