@@ -17,16 +17,18 @@ In 2019 IEEE International Conference on Image Processing (ICIP) 2019 Sep. IEEE.
 
 
 # Installation
-
-TODO
-
-# Requirements
+After downloading the repository, put the "affspec" folder with your main code.
 
 ## Note for CUDA (GPU) computing
 The PyTorch library support CUDA computing that can boost running speed of deep learning models. 
 If you have a Nvidia GPU, then you can follow the CUDA installation steps before installing PyTorch.
 
 In our empirical experiment, CUDA runs 20 times faster than a modern CPU.
+
+# Requirements
+Python 3.6+
+PyTorch 1.0+
+OpenCV2
 
 
 # Alternative Tools
@@ -41,3 +43,6 @@ There are lots of other open source tools for affective computing. We list the f
 # License
 [MIT License](LICENSE.md)
 
+# Q&A
+If you have any questions, please contact 
+[beibin@uw.edu](beibin@uw.edu).
