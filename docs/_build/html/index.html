@@ -40,64 +40,8 @@
   <div class="section" id="welcome-to-affspec-s-documentation">
 <h1>Welcome to affspec’s documentation!<a class="headerlink" href="#welcome-to-affspec-s-documentation" title="Permalink to this headline">¶</a></h1>
 </div>
-<div class="section" id="module-pipeline">
-<span id="easy-usage"></span><h1>Easy Usage<a class="headerlink" href="#module-pipeline" title="Permalink to this headline">¶</a></h1>
-<dl class="class">
-<dt id="pipeline.Process">
-<em class="property">class </em><code class="descclassname">pipeline.</code><code class="descname">Process</code><span class="sig-paren">(</span><em>weight_loc</em>, <em>cuda_id=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pipeline.html#Process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pipeline.Process" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set up as session (aka process) to serve the CNN model.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>weight_loc</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – the default location for the model weights</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="function">
-<dt id="pipeline.detect_face">
-<code class="descclassname">pipeline.</code><code class="descname">detect_face</code><span class="sig-paren">(</span><em>img</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pipeline.html#detect_face"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pipeline.detect_face" title="Permalink to this definition">¶</a></dt>
-<dd><p>img is get from cv2.imread()</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>img</strong> (<em>numpy.array</em>) – the input image</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>top, right, bottom, left</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>t, r, b, l (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)">int</a>)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="function">
-<dt id="pipeline.img2torch">
-<code class="descclassname">pipeline.</code><code class="descname">img2torch</code><span class="sig-paren">(</span><em>img</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pipeline.html#img2torch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pipeline.img2torch" title="Permalink to this definition">¶</a></dt>
-<dd><p>Detect and crop the face, and then convert the largest face to PyTorch tensor</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>img</strong> (<em>numpy.array</em>) – the input image as the numpy array with [h, w, 3] size.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the input image as PyTorch object with [3, 224, 224] size.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>img (torch.Tensor)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<span class="target" id="module-realtime"></span><dl class="function">
-<dt id="realtime.process_csv">
-<code class="descclassname">realtime.</code><code class="descname">process_csv</code><span class="sig-paren">(</span><em>csv_name</em>, <em>skip_if_exists=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/realtime.html#process_csv"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#realtime.process_csv" title="Permalink to this definition">¶</a></dt>
-<dd><p>Process a CSV file</p>
-<p>Args:
-csv_name (str): file path for the csv file
-skip_if_exists (bool): if set True, then it will skip processing the already processed images</p>
-<p>Returns:
-None (None): nothing</p>
-</dd></dl>
-
+<div class="section" id="easy-usage">
+<h1>Easy Usage<a class="headerlink" href="#easy-usage" title="Permalink to this headline">¶</a></h1>
 </div>
 <div class="section" id="detailed-contents">
 <h1>Detailed Contents<a class="headerlink" href="#detailed-contents" title="Permalink to this headline">¶</a></h1>
@@ -128,7 +72,7 @@ None (None): nothing</p>
   <h3><a href="#">Table of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Welcome to affspec’s documentation!</a></li>
-<li><a class="reference internal" href="#module-pipeline">Easy Usage</a></li>
+<li><a class="reference internal" href="#easy-usage">Easy Usage</a></li>
 <li><a class="reference internal" href="#detailed-contents">Detailed Contents</a></li>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>

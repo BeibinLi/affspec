@@ -6,8 +6,6 @@ Easy Usage
 .. automodule:: pipeline
     :members:
 
-.. automodule:: realtime
-    :members:
 
 
 Detailed Contents
