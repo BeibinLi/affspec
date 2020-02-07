@@ -9,10 +9,12 @@ session = affspec.pipeline.Process(backbone="esp")
 # %% Process a numpy image
 img = cv2.imread("images/beibin.jpg")
 
-rst0 = session.run_one_img(img, detect_face_before_process=False)
+rst = session.run_one_img(img, detect_face_before_process=False)
 
-print(rst0)
+print(rst)
 
+
+# %%
 rst = session.run_one_img(img, detect_face_before_process=True)
 print(rst)
 
