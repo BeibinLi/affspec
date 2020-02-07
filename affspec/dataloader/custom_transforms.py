@@ -2,7 +2,6 @@ import numpy as np
 import random
 from PIL import Image
 
-import skimage
 
 #%%
 class FaceCrop(object):
@@ -51,14 +50,17 @@ class FaceCrop(object):
 #        print( img.shape, top, left, right, bottom )
 
         try:
-            img = skimage.color.gray2rgb( img ) # cast gray image to rgb
+            if len(img.shape) == 2 or img.shape[2] == 1:
+                # Gray-level image
+                img = img.reshape(img.shape[0], img.shape[1], 1) # reshape to rank 3
+                img = np.concatenate([img, img, img], axis=2)
+            
             img = img[ int(top):int(bottom), int(left):int(right) ]
         except Exception as e:
             print(e)
             print( "Error Occured in %s" % sample["image_path"] )
             print( img.shape, top, left, right, bottom )
         
-#        print( img.shape )
         return Image.fromarray( img )
     
     

@@ -8,7 +8,12 @@ session = affspec.pipeline.Process(backbone="esp")
 
 # %% Process a numpy image
 img = cv2.imread("images/beibin.jpg")
-rst = session.run_one_img(img)
+
+rst0 = session.run_one_img(img, detect_face_before_process=False)
+
+print(rst0)
+
+rst = session.run_one_img(img, detect_face_before_process=True)
 print(rst)
 
 
@@ -29,7 +34,7 @@ print(rst)
 
 # %% If there is no face in the image. 
 # The result will be None
-rst = session.run_one_img(imgname="images/no_face.jpg")
+rst = session.run_one_img(imgname="images/no_face.jpg", detect_face_before_process=True)
 print(rst)
 
 # %% Process several images at one time

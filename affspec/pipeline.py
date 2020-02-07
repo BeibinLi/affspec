@@ -25,6 +25,7 @@ import time
 import pdb
 import random
 import glob
+import warnings
 
 
 #%%
@@ -56,7 +57,7 @@ def detect_face(img):
     all_locations = fr.face_locations(img , model = 'hog') # get locations of all faces
 
     max_area = 0
-    face_location = None
+    face_location = None, None, None, None
 
     for x in all_locations: # x is the location for one face
         face_size = (x[2] - x[0]) * (x[3] - x[1])
@@ -69,47 +70,38 @@ def detect_face(img):
 
 
 
+class NoFaceError(Exception):
+    pass
 
 
-def img2torch(img):
+def img2torch(img, detect_face_before_process=True):
     """
     Detect and crop the face, and then convert the largest face to PyTorch tensor
+    
+    If the user asks to detect the face, but there is no face in the image,
+    it will raise an error.
 
     Args:
         img (numpy.array): the input image as the numpy array with [h, w, 3] size.
-
+        detect_face_before_process (bool): Run face detection algorithm to find the face or not
+        
     Returns:
         img (torch.Tensor): the input image as PyTorch object with [3, 224, 224] size.        
-    """    
-    try:
-        top, right, bottom, left = detect_face( img )
+    """  
+    if detect_face_before_process:
+        top, right, bottom, left = detect_face(img)
         
-        img_dict = {"image": img, "top":top, "bottom":bottom, "left":left, "right":right}
-        tensor = transformer(img_dict)
-        tensor = tensor.unsqueeze(0) # make 3-dim to 4-dim
-        return tensor
+        if top is None:
+            # No face detected in the image, but the user want to detect face
+            raise(NoFaceError("No face in the image"))
+    else:
+        top, right, bottom, left = None, None, None, None
         
-        img = img[ top:bottom, left:right, : ]
-        
-    except Exception as e:
-        print("unable to get face", e)
-        return None
-        
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
- 
-    try:
-        img = cv2.resize( img, (img_size[0], img_size[1]) )
-    except Exception as e:
-        print( "Error resizing from", img.shape, "to", img_size )
-        raise( e )
+    img_dict = {"image": img, "top":top, "bottom":bottom, "left":left, "right":right}
+    tensor = transformer(img_dict)
+    tensor = tensor.unsqueeze(0) # make 3-dim to 4-dim
+    return tensor        
 
-    img = img.swapaxes(0, 2) # swap height axis and color_depth axis
-    img = img.astype(np.float64)
-    
-    img = torch.Tensor(img)
-    img = img.unsqueeze(0) # add one more dimension before the data
-
-    return img
 
 
 #%%
@@ -184,7 +176,7 @@ class Process:
     
 
   
-    def run_one_img(self, img=None, imgname = None):
+    def run_one_img(self, img=None, imgname=None, detect_face_before_process=True):
         """
         Process one image. 
         
@@ -192,6 +184,7 @@ class Process:
             img (np.array): size with [h, w, 3]. 
             imgname (str): image name. If this is specified, then it will ignore 
                 the other arguments
+            detect_face_before_process (bool): Run face detection algorithm to find the face or not
                 
         Output:
             rst (dict): a dictionary for results.
@@ -205,8 +198,12 @@ class Process:
                 print("Unaboe to get the image:", imgname)
                 return self.rst_placeholder
         
-        inputs = img2torch(img)
-        if inputs is None:
+        try:
+            inputs = img2torch(img, detect_face_before_process)
+        except NoFaceError:
+            # Not face detected
+            rst = copy.deepcopy(self.rst_placeholder)
+            rst["imgname"] = imgname if imgname is not None else None
             return self.rst_placeholder
         
         inputs = inputs.float()
@@ -226,7 +223,8 @@ class Process:
     def output_2_dict(self, outputs):
         """
         Args:
-            outputs (torch.tensor): the output with 22 elements
+            outputs (torch.tensor): the output with 22 elements, including 
+                    information with expression, AU, valence, and arousal
             
         Output:
             rst (dict): a dictionary for results.
@@ -260,7 +258,7 @@ class Process:
         
         return rst    
         
-    def run_imgs(self, imagenames, batch_size=3):
+    def run_imgs(self, imagenames, batch_size=3, detect_face_before_process=True):
         """
         Process a list of images
         
@@ -269,6 +267,7 @@ class Process:
             batch_size (int): number of images to process per iteration. If 
                 the GPU is powerful, it can be 10 or more. If only CPU is used,
                 then the batch size should be smaller than 3.
+            detect_face_before_process (bool): Run face detection algorithm to find the face or not
             
         Output:
             rst (list): a list of outputs, where each element is a dictionary
@@ -287,23 +286,26 @@ class Process:
                 imgname = imagenames[i + j]
                 try:
                     img = cv2.imread(imgname)
-                    img = img2torch(img)
-                except:
-                    print("Unable to read image:", imgname)
-
-                if img is not None:
-                    inputs.append(img)
-                    inputs_indices.append(i + j)
+                    img = img2torch(img, detect_face_before_process)
+                except Exception as e:
+                    if e is NoFaceError:
+                        warnings.warn("Unable to find the face in: %s" % imgname, RuntimeWarning)
+                    else:
+                        warnings.warn("Unable to read image: %s" % imgname, RuntimeWarning)
+                    continue
+                
+                inputs.append(img)
+                inputs_indices.append(i + j)
                     
-            
+
             inputs = torch.cat(inputs, dim=0)
 
             inputs = inputs.type(torch.FloatTensor)
             if self.use_cuda: 
                 inputs = inputs.cuda()
            
-            outputs = self.model( inputs.float() )
-#            pdb.set_trace()
+            outputs = self.model(inputs.float())
+
             for j in range(inputs.shape[0]):
                 rst = self.output_2_dict(outputs[j, :])
                 actual_idx = inputs_indices[j]
